@@ -26,10 +26,9 @@ def _run_and_log(cmd):
     if not DRY_RUN:
         os.system(cmd)
 
-    def reorder(self,inputDir):
-        """Converts a folder of C01 files."""
-        logger.info("INPUT:" + inputDir)
-
+def _always_run_and_log(cmd):
+    logger.info(cmd)
+    os.system(cmd)
 
 def reorder(dir_in):
     start_time = time.time()
@@ -66,17 +65,24 @@ def reorder(dir_in):
             well = result.groups()[0]
             break
 
-    _run_and_log("cat " + csv + " |grep " + well +" |grep d0|cut -d',' -f 21,31,32 |sort -t',' -k3nr,3nr -k2n,2n > " + reordered_fields_csv)
+    _always_run_and_log("cat " + csv + " |grep " + well +" |grep d0|cut -d',' -f 21,31,32 |sort -t',' -k3nr,3nr -k2n,2n > " + reordered_fields_csv)
 
     imageList = open(reordered_fields_csv)
     images = imageList.readlines()
     imageList.close()
     j = 0
+    reField = re.compile("f([0-9]*)d0.C01")
+    field = "NO_FIELD"
     for i in images:
         image,x,y = i.split(",")
         image = image.replace('"','')
-        _run_and_log("rename 's/f../fnew" + str(j).zfill(2) + "/' " + os.path.join(dir_in, image))
+        field = re.search(reField,image).groups()[0]
+        _run_and_log("rename 's/f" + field + "/fnew" + str(j).zfill(len(field)) + "/' " + os.path.join(dir_in, "*f" +  field + "*.C01"))
         j = j + 1
+
+    # at this point, the file names look like PLATE_A01fnew00d0.CO1 etc.
+    # comment out the following line, if you want to keep using
+    # fnew to show that the files have been reordered.
     _run_and_log("rename 's/fnew/f/' " + os.path.join(dir_in, "*.C01"))
 
     logger.info("Total time elapsed: " + str(time.time() - start_time) + "s")
